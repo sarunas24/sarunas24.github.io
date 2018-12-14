@@ -1,0 +1,96 @@
+---
+title: "Final Report"
+author: "Sarunas Dzinkevicius"
+date: "30 November 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Final Report in Fulfilment of Coursera Week 4 assignment
+### By Sarunas Dzinkevicius
+
+### Introduction
+This report presents the results of a random forest analysis of exercise data collected using accelerometers attached to dumbbells and forearms. The purpose of this exercise was to predict the class (classe) of exercise (A, B, C, or D) from available data, such as forearm acceleration, and other factors.
+
+I used a random forest prediction model using the caret package, as it is the most appropriate method, given that the predicted variable is categorical.
+
+### My work
+```{r, echo=TRUE}
+#Loading required packages
+library(caret)
+#Load training and test files 
+training<-read.csv("C://Users//paul young//Desktop//pml-training.csv")
+testing<-read.csv("C://Users//paul young//Desktop//pml-testing.csv")
+#Collect NA values using grepl....
+rm<-grepl("NA",training)
+#...and remove them
+training<-training[!rm]
+#Remove useless columns
+training<-training[-c(1:7)]
+#Now we do the cleanup for the testing dataset.
+rm<-grepl("NA",testing)
+testing<-testing[!rm]
+testing<-testing[-c(1:7)]
+testing<-testing[-53]
+```
+In order to begin the data analysis, we must split our training data set in to "Training" and "Test" sets, here called "Train" and "Validate", respectively. 
+
+The splitting of a data set was necessary for two reasons:
+1) Perform model tuning on a dedicated "safe" data set
+2) reduce over-fitting
+```{R, echo=TRUE}
+#split the data in to training and test sets
+inTrain<-createDataPartition(y=training$classe,p=0.7, list=FALSE)
+Train<-training[inTrain,]
+Validate<-training[-inTrain,]
+```
+I fitted a Random forest model to the data. I have chosen a random forest, because it is the best type of analysis for categorical predictors. I perfored 50 trees, as it was a good compromise between accuracy and computation time.
+```{R, echo=TRUE}
+#Fitting a Random forest model with 50 trees
+modelFit<-train(classe~.,method="rf",preProcess=c("center","scale"),data=Train,ntree=50)
+#Get a summary of the model
+modelFit
+```
+This model shows good accuracy, so we can apply it to our test data set we imported earlier, here simply named "testing".
+```{R, echo=TRUE}
+#Predict with the model we created
+final<-predict(modelFit,newdata=testing)
+```
+We can now run a final validation test of the model. We will use the "Validate" data set, originally part of the "training" data set that we split using caret. 
+
+In order to know how good the model is, we can do a confusion matrix analysis to see how well the model predicted the the exercise class in the "Validate" data set and how specific it is, among other statistical criteria.
+```{R,echo=TRUE}
+#Run the final model on the test set
+finalModel<-predict(modelFit,newdata =Validate)
+#Make the onfusion Matrix
+confusionMatrix(finalModel,Validate$classe)
+```
+To perform an out of sample error analysis,we need to compare the predicted exercise classes from the test set to the validation set. We can do this by writing code which compares the outputs of predictions from the test and validation sets and compares them to find identical sequences of letters representing class (A,B,C,D or E).
+```{R, Echo= TRUE}
+#convert model output to the character class
+Validate.classe<-as.character(Validate$classe)
+finalModel<-as.character(finalModel)
+#calculate out of Sample Accuracy
+OOSAccuracy<-sum(finalModel==Validate.classe)/length(finalModel)
+#Now We calculate the OOS error.
+OOSError<-1-OOSAccuracy
+```
+We check the Out of Sample Accuracy...
+```{R,echo=TRUE}
+OOSAccuracy
+```
+...and out of sample sample error:
+```{R, Echo=TRUE}
+OOSError
+```
+
+Therefore, the percentage Out of Sample error is:
+```{R, echo==TRUE}
+Percent.OOSError<-c(OOSError*100)
+Percent.OOSError<-paste0(round(Percent.OOSError,digits=2),"%")
+Percent.OOSError  
+```
+
+
